@@ -7,7 +7,7 @@ import random
 from math import pi
 
 if not check_license("license.key"):
-    mb.showerror("error", "Access denided! U don't have a license 😞")
+    mb.showerror("error", "Access denided! U don't have a license")
     sys.exit()
 else:
     pygame.init()

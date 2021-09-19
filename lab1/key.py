@@ -9,10 +9,10 @@ def gen_license_key():
     return hashlib.sha512(machine_id.encode('utf-8')).hexdigest()
 
 
-def check_license(filename):
-    if not os.path.isfile(filename):
+def check_license(file):
+    if not os.path.isfile(file):
         return False
-    with open(filename, "r") as license:
+    with open(file, "r") as license:
         if license.readline() == gen_license_key():
             return True
         else:
