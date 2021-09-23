@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base32"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -12,7 +13,7 @@ import (
 type EnigmaMachine struct {
 	rotors []string
 	reflectorKey, ringSettings string
-	reflector Rotor
+	reflectorList []Rotor
 	rotorList []Rotor
 	//rotorsCount int
 }
@@ -40,7 +41,8 @@ type Machine interface {
 	Init() EnigmaMachine
 	Rotate()
 	ProcessText(text string) string
-	KeyPress(symbol string) string
+	Encode(symbol string) string
+	Decode(symbol string) string
 }
 
 
@@ -51,7 +53,7 @@ func (m EnigmaMachine) Init() EnigmaMachine {
 	for _, val := range(m.rotors) {
 		m.rotorList = append(m.rotorList, createRotor(val))
 	}
-	m.reflector = createReflector(m.reflectorKey)
+	m.reflectorList = append(m.reflectorList, createReflector(m.reflectorKey))
 	return m
 }
 
@@ -72,7 +74,7 @@ func getReflectorValue(m EnigmaMachine, key, step string) string {
 	return rotor
 }
 
-func (m EnigmaMachine) KeyPress(symbol string) string {
+func (m EnigmaMachine) Encode(symbol string) string {
 	var rotor, stepping string
 	//fmt.Println("-------------------------------------------------------------------------------")
 	//fmt.Println("Symbol = ", symbol)
@@ -119,7 +121,52 @@ func (m EnigmaMachine) KeyPress(symbol string) string {
 	return rotor
 }
 
-func (m EnigmaMachine) ProcessText(text string) string {
+func (m EnigmaMachine) Decode(symbol string) string {
+	var signal, stepping string
+	fmt.Println("symbol = ", symbol)
+	pos := m.rotorList[0].alphaMap[symbol]
+	for key, val := range m.reflectorList[0].posMap {
+		if val == pos {
+			signal = key
+		}
+	}
+	//fmt.Println("Signal before = ", signal)
+	for i := len(m.rotorList) - 1; i >= 0; i-- {
+		stepping = m.rotorList[i].stepping
+		steppingPos := m.rotorList[i].alphaMap[stepping]
+		if i == len(m.rotorList) - 1 {
+			pos := m.rotorList[i].alphaMap[signal] + steppingPos
+			if pos > 25 {
+				pos = pos - 26
+			}
+			for key, val := range m.rotorList[i].alphaMap {
+				if val == pos {
+					signal = key
+				}
+			}
+		} else {
+			backStepping := m.rotorList[i+1].stepping
+			backSteppingPos := m.rotorList[i+1].alphaMap[backStepping]
+			steppingDifference := backSteppingPos - steppingPos
+			pos := m.rotorList[i].alphaMap[signal] - steppingDifference
+			if pos < 0 {
+				pos = 26 + pos
+			}
+			if pos > 25 {
+				pos = pos - 26
+			}
+			for key, val := range m.rotorList[i].alphaMap {
+				if val == pos {
+					signal = key
+				}
+			}
+		}
+	}
+	signal = getReflectorValue(m, signal, stepping)
+	return signal
+}
+
+func (m EnigmaMachine) ProcessText(text, mode string) string {
 	var result, c string
 	for _, val := range text {
 		c = strings.ToUpper(string(val))
@@ -131,7 +178,12 @@ func (m EnigmaMachine) ProcessText(text string) string {
 				panic("Illegal symbol")
 			}
 		}
-		result += m.KeyPress(c)
+		if mode == "encode" {
+			result += m.Encode(c)
+		} else {
+			result += m.Decode(c)
+		}
+
 
 	}
 	return result
@@ -139,11 +191,20 @@ func (m EnigmaMachine) ProcessText(text string) string {
 
 
 func main() {
-	file, err := os.Open("archive.zip")
+	mode := "decode"
+
+	file, err := os.Open("file.txt")
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
+
+	f, err := os.Create("result.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
 	content := bytes.Buffer{}
 	buf := bufio.NewScanner(file)
 	for buf.Scan() {
@@ -152,14 +213,9 @@ func main() {
 	res := base32.StdEncoding.EncodeToString([]byte(content.String()))
 	tmp := EnigmaMachine{rotors: []string{"I", "II", "III"}, reflectorKey: "B"}
 	tmp = tmp.Init()
-	f, err := os.Create("result.txt")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	_, err = f.WriteString(tmp.ProcessText(res))
+	_, err = f.WriteString(tmp.ProcessText(res, mode))
 	if err != nil {
 		panic(err)
 	}
 }
+
