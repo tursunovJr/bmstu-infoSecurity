@@ -3,18 +3,37 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 )
 
 func main() {
+	var data []int
+	var res []string
 	key := make([]int, 64, 64)
-	data := make([]int, 32, 32)
+
+	file, err := os.ReadFile("file.txt")
+	if err != nil {
+		panic(err)
+	}
+	for _, val := range file {
+		data = append(data, int(val))
+	}
 	for i := 0; i < len(key); i++ {
 		key[i] = rand.Intn(2)
 	}
-	for i := 0; i < 32; i++ {
-		data[i] = rand.Intn(2)
-	}
 	rand16Key := randKeyGen(key)
-	fmt.Println(len(cipherFeistel(data, rand16Key[1])))
+	if len(data) % 8 != 0 {
+		for len(data) % 8 != 0 {
+			data = append(data, 0)
+		}
+	}
+	for i := 0; i < len(data)/8; i++ {
+		arr := data[8 * i : 8 * (i + 1)]
+		cipher := process(arr, rand16Key, "encrypt")
+		res = append(res, strings.Trim(strings.Replace(fmt.Sprint(cipher), " ", ",", -1), "[]"))
+	}
+	fmt.Println(res)
 
 }
+
