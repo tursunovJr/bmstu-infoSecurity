@@ -10,6 +10,7 @@ import (
 func main() {
 	var data []int
 	var res []string
+	var cnt int
 	key := make([]int, 64, 64)
 
 	file, err := os.ReadFile("file.txt")
@@ -26,6 +27,7 @@ func main() {
 	if len(data) % 8 != 0 {
 		for len(data) % 8 != 0 {
 			data = append(data, 0)
+			cnt++
 		}
 	}
 	for i := 0; i < len(data)/8; i++ {
@@ -33,7 +35,7 @@ func main() {
 		cipher := process(arr, rand16Key, "encrypt")
 		res = append(res, strings.Trim(strings.Replace(fmt.Sprint(cipher), " ", ",", -1), "[]"))
 	}
-	fmt.Println(res)
+	fmt.Println(res[:len(res) - cnt])
 
 }
 
